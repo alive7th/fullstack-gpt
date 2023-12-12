@@ -1,7 +1,7 @@
 # fullstack-gpt
 FULLSTACK GPT학습
 
-python 3.11.6 버전으로 진행해야지 됨!!!!
+python 3.11.6 버전으로 진행해야지 됨!!!!2
 
 # 환경 준비
 ## requirements.txt 디펜던시 설치
