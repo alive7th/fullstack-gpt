@@ -1,30 +1,23 @@
 import streamlit as st
-from langchain.prompts import PromptTemplate
+from datetime import datetime
 
+today = datetime.today().strftime("%H:%M:%S")
 
-st.title("Hello World!")
-
-st.subheader("Welcome to Streamlit!")
-
-st.markdown("""
-    #### I love it!!
-""")
-
-st.write("Hellow Im Jungwon")
-
-# st.write([1,2,3,4,5])
-a = [1,2,3,4,5]
-a
-
-# st.write({"name": "jwkim"})
-b = {"name": "jwkim"}
-
-b
-
-# st.write(PromptTemplate)
-PromptTemplate
-
-p = PromptTemplate.from_template("sssss")
-p
+st.title(today)
 # st.write(p)
-st.selectbox("선택하세요", ["GPT-3", "GPT-4"])
+model = st.selectbox("선택하세요", ["GPT-3", "GPT-4"])
+
+if model == "GPT-3":
+    st.write("싸다")
+else:
+    st.write("비싸다")
+
+    st.write(model)
+
+    name = st.text_input("이름을 입력하세요")
+
+    st.write(name)
+
+    value = st.slider("temperature", min_value=0.1, max_value=1.0, )
+
+    st.write(value)
