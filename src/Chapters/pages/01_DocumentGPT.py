@@ -6,14 +6,18 @@ from langchain.storage import LocalFileStore
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import FAISS
 from langchain.chat_models import ChatOpenAI
+# from langchain_google_genai import ChatGoogleGenerativeAI
 import streamlit as st
+# import os
 
 st.set_page_config(
     page_title="DocumentGPT",
     page_icon="📓"
 )
-
+# api_key = os.getenv("GOOGLE_API_KEY")
+# print(api_key)
 llm = ChatOpenAI(temperature=0.1)
+# llm = ChatGoogleGenerativeAI(temperature=0.1, model="gemini-pro", google_api_key= "AIzaSyC4Sd1OMqObxxCfUXV_rwyCRxyb8jME9kk")
 
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
