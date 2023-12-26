@@ -1,16 +1,19 @@
-import streamlit as st
-import time
-from langchain.storage import LocalFileStore
-from langchain.text_splitter import CharacterTextSplitter
+from langchain.prompts import ChatPromptTemplate
 from langchain.document_loaders import UnstructuredFileLoader
 from langchain.embeddings import OpenAIEmbeddings, CacheBackedEmbeddings
+from langchain.schema.runnable import RunnableLambda, RunnablePassthrough
+from langchain.storage import LocalFileStore
+from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import FAISS
-from langchain.prompts import ChatPromptTemplate
+from langchain.chat_models import ChatOpenAI
+import streamlit as st
 
 st.set_page_config(
     page_title="DocumentGPT",
     page_icon="📓"
 )
+
+llm = ChatOpenAI(temperature=0.1)
 
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
@@ -50,6 +53,21 @@ def paint_history():
     for message in st.session_state["messages"]:
         send_message(message["message"], message["role"], save=False)
 
+def format_docs(docs):
+    return "\n\n".join(document.page_content for document in docs)
+
+prompt = ChatPromptTemplate.from_messages([
+    (
+        "system", 
+        """
+        Answer the question using ONLY the following context. If you don't know the answer
+        just say that you don't know. DO NOT give any explanations.
+
+        Context: {context}
+        """
+     ),
+    ("human", "{question}")
+])
 
 st.title("DocumentGPT")
 
@@ -75,6 +93,15 @@ if file:
 
     if message:
         send_message(message, "human")
-        send_message("okaka", "ai")
+        chain = {
+            "context": retriever | RunnableLambda(format_docs),
+            "question": RunnablePassthrough()
+        } | prompt | llm
+        response = chain.invoke(message)
+        send_message(response.content, "ai")
+        # docs = retriever.invoke(message)
+        # docs = "\n\n".join(document.page_content for document in docs)
+        # prompt = template.format_messages(context=docs, question=message)
+        # llm.predict(prompt)
 else:
     st.session_state["messages"] = []
