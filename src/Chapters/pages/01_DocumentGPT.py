@@ -1,4 +1,6 @@
 from langchain.prompts import ChatPromptTemplate
+from langchain.memory import ConversationSummaryBufferMemory
+from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.document_loaders import UnstructuredFileLoader
 from langchain.embeddings import OpenAIEmbeddings, CacheBackedEmbeddings
 from langchain.schema.runnable import RunnableLambda, RunnablePassthrough
@@ -8,6 +10,7 @@ from langchain.vectorstores import FAISS
 from langchain.chat_models import ChatOpenAI
 # from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.callbacks.base import BaseCallbackHandler
+from langchain.chains import LLMChain
 import streamlit as st
 # import os
 
@@ -15,8 +18,7 @@ st.set_page_config(
     page_title="DocumentGPT",
     page_icon="📓"
 )
-# api_key = os.getenv("GOOGLE_API_KEY")
-# print(api_key)
+
 class ChatCallbackHandler(BaseCallbackHandler):
 
     message = ""
@@ -39,7 +41,20 @@ llm = ChatOpenAI(
         ChatCallbackHandler()
     ]
 )
-# llm = ChatGoogleGenerativeAI(temperature=0.1, model="gemini-pro", google_api_key= "AIzaSyC4Sd1OMqObxxCfUXV_rwyCRxyb8jME9kk")
+
+
+# 메모리 객체 정의.
+if 'memory' not in st.session_state:
+    st.session_state['memory'] = ConversationSummaryBufferMemory(
+        llm=llm,
+        max_token_limit=1000,
+        memory_key="chat_history",
+        return_messages=True
+    )
+memory = st.session_state['memory'] 
+
+def get_history(_):
+    return memory.load_memory_variables({})
 
 if "messages" not in st.session_state:
     st.session_state["messages"] = []
@@ -69,12 +84,14 @@ def embed_file(file):
 
 def save_message(message, role):
     st.session_state["messages"].append({"message": message, "role": role})
+    
 
 def send_message(message, role, save=True):
     with st.chat_message(role):
         st.markdown(message)
     if save:
         save_message(message, role)
+
 
 
 def paint_history():
@@ -84,18 +101,8 @@ def paint_history():
 def format_docs(docs):
     return "\n\n".join(document.page_content for document in docs)
 
-prompt = ChatPromptTemplate.from_messages([
-    (
-        "system", 
-        """
-        Answer the question using ONLY the following context. If you don't know the answer
-        just say that you don't know. DO NOT give any explanations.
-
-        Context: {context}
-        """
-     ),
-    ("human", "{question}")
-])
+def load_memory(_):
+    return memory.load_memory_variables({}).get("chat_history", [])
 
 st.title("DocumentGPT")
 
@@ -108,6 +115,26 @@ Use this chatbot to ask questions to an AI about your files!
 Upload your files on the sidebar.
 """
 )
+
+
+prompt = ChatPromptTemplate.from_messages([
+    (
+        "system", 
+        """
+        Answer the question using ONLY the following context. If you don't know the answer
+        just say that you don't know. DO NOT give any explanations.
+
+        Context: {context}
+        """
+     ),
+     MessagesPlaceholder(variable_name="chat_history"),
+    ("human", "{question}")
+])
+
+
+def get_history():
+    return memory.load_memory_variables({})
+
 
 with st.sidebar:
     file = st.file_uploader("Upload a .txt .pdf .docx file", type=["pdf","txt","docx", "md"])
@@ -123,10 +150,11 @@ if file:
         send_message(message, "human")
         chain = {
             "context": retriever | RunnableLambda(format_docs),
-            "question": RunnablePassthrough()
-        } | prompt | llm
-        
+            "question": RunnablePassthrough(),
+        } |RunnablePassthrough.assign(chat_history=load_memory) | prompt | llm 
+       
         with st.chat_message("ai"):
             response = chain.invoke(message)
+            memory.save_context({"input": message}, {"output": response.content })
 else:
     st.session_state["messages"] = []
